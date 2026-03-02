@@ -1,0 +1,17 @@
+services:
+  db:
+    build: ./database
+    container_name: postgres_ws_db
+    restart: always
+    ports:
+      - "54321:5432"
+    environment:
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_DB=postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/up.sql:/docker-entrypoint-initdb.d/1-up.sql
+
+volumes:
+  postgres_data:
