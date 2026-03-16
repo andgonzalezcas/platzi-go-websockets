@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Post Api Test</title>
+</head>
+
+<body>
+    <h1>Post Aplication Test</h1>
+</body>
+
+<script>
+    const PAGE_NUMBER = 1;
+    const params = new URLSearchParams({ page: PAGE_NUMBER });
+
+    const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIzQU42aUxOdHpxRlRyYmRMdnZjcmxXNnM0TjkiLCJleHAiOjE3NzM2OTc0MDR9.aO7tahMNCpjRWw60WBjz-slQLi3bJRHDJ1Jv9Bz3Cuk";
+
+    fetch(`http://localhost:5050/posts?${params}`, {
+        method: "GET",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": token
+        }
+    }).then(function (response) {
+        return response.json()
+    }).then(function (data) {
+        console.log(data)
+    }).catch(function (error) {
+        console.error(error)
+    });
+
+    const ws = new WebSocket('ws://localhost:5050/ws');
+
+    ws.onopen = () => {
+        console.log(">> Connected to websocket");
+    }
+
+    ws.onmessage = (event) => {
+        console.log(">> Message from server: ", event.data);
+    }
+
+    ws.onerror = (error) => {
+        console.error(">> Error: ", error);
+    }
+
+    ws.onclose = () => {
+        console.log(">> Disconnected from websocket");
+    }
+</script>
+
+</html>
