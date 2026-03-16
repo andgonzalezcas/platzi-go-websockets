@@ -36,7 +36,7 @@ services:
     container_name: react_ws_frontend
     restart: always
     ports:
-      - "80808:80"
+      - "40404:80"
     depends_on:
       - backend
 
