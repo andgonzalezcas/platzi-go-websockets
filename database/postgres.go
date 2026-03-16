@@ -92,15 +92,15 @@ func (repo *PostgresRepository) DeletePost(ctx context.Context, id string, userI
 	return err
 }
 
-func (repo *PostgresRepository) ListPosts(ctx context.Context, limit uint64, offset uint64) ([]models.Post, error) {
+func (repo *PostgresRepository) ListPosts(ctx context.Context, limit uint64, offset uint64) ([]models.Post, uint64, error) {
 	rows, err := repo.db.QueryContext(
 		ctx,
-		"SELECT id, content, created_at, user_id FROM posts ORDER BY created_at DESC LIMIT $1 OFFSET $2",
+		"SELECT id, content, created_at, user_id, COUNT(*) OVER() FROM posts ORDER BY created_at DESC LIMIT $1 OFFSET $2",
 		limit,
 		offset,
 	)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer func() {
 		err = rows.Close()
@@ -109,18 +109,19 @@ func (repo *PostgresRepository) ListPosts(ctx context.Context, limit uint64, off
 		}
 	}()
 	posts := []models.Post{}
+	var total uint64
 	for rows.Next() {
 		var post models.Post
-		err := rows.Scan(&post.Id, &post.Content, &post.CreatedAt, &post.UserId)
+		err := rows.Scan(&post.Id, &post.Content, &post.CreatedAt, &post.UserId, &total)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		posts = append(posts, post)
 	}
 	if err = rows.Err(); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return posts, nil
+	return posts, total, nil
 }
 
 func (repo *PostgresRepository) GetUserByEmail(ctx context.Context, email string) (*models.User, error) {

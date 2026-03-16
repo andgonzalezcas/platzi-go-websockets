@@ -164,6 +164,11 @@ func DeletePostHandler(s server.Server) http.HandlerFunc {
 	}
 }
 
+type ListPostsResponse struct {
+	Count uint64        `json:"count"`
+	Posts []models.Post `json:"posts"`
+}
+
 func ListPostsHandler(s server.Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		pageStr := r.URL.Query().Get("page")
@@ -179,13 +184,16 @@ func ListPostsHandler(s server.Server) http.HandlerFunc {
 			limit = 20
 		}
 
-		posts, err := repository.ListPosts(r.Context(), limit, page)
+		posts, total, err := repository.ListPosts(r.Context(), limit, page)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(posts)
+		json.NewEncoder(w).Encode(ListPostsResponse{
+			Posts: posts,
+			Count: total,
+		})
 	}
 }
