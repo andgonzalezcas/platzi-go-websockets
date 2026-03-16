@@ -3,7 +3,7 @@ import { API_URL } from '../constants';
 import { fetchPosts, createPost as apiCreatePost, updatePost as apiUpdatePost } from '../services/post';
 
 export const usePosts = (authToken, handleAuthentication) => {
-  const [posts, setPosts] = useState([]);
+  const [posts, setPosts] = useState({}); // { id: post }
   const [totalPosts, setTotalPosts] = useState(0);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
@@ -20,7 +20,15 @@ export const usePosts = (authToken, handleAuthentication) => {
     try {
       setLoading(true);
       const data = await fetchPosts(currentPage, limit, token);
-      setPosts(Array.isArray(data.posts) ? data.posts : []);
+
+      const newPostsArr = Array.isArray(data.posts) ? data.posts : [];
+      const newPostsObj = {};
+
+      newPostsArr.forEach(post => {
+        newPostsObj[post.id] = post;
+      });
+
+      setPosts(newPostsObj);
       setTotalPosts(data.count || 0);
     } catch (error) {
       console.error("Error fetching posts:", error);
@@ -51,7 +59,6 @@ export const usePosts = (authToken, handleAuthentication) => {
     if (!content.trim()) return;
     try {
       await apiUpdatePost(id, content, authToken);
-      setPosts(prev => prev.map(p => p.id === id ? { ...p, content } : p));
       return true;
     } catch (error) {
       console.error("Error updating post:", error);
@@ -76,12 +83,20 @@ export const usePosts = (authToken, handleAuthentication) => {
     ws.onmessage = (event) => {
       try {
         const message = JSON.parse(event.data);
+        const payload = message.payload;
+
         if (message.type === "Post_Created") {
-          const newPost = message.payload;
           if (pageRef.current === 0) {
-            setPosts((prevPosts) => [newPost, ...prevPosts].slice(0, limit));
+            setPosts(prev => ({ [payload.id]: payload, ...prev }));
           }
           setTotalPosts((prev) => prev + 1);
+        } else if (message.type === "Post_Updated") {
+          setPosts(prev => {
+            if (prev[payload.id]) {
+              return { ...prev, [payload.id]: { ...payload } };
+            }
+            return prev;
+          });
         }
       } catch (error) {
         console.error("Error parsing websocket message:", error);

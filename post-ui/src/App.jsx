@@ -61,7 +61,10 @@ export default function PostFeed() {
 
   const totalPages = Math.ceil(totalPosts / limit);
 
-  if (loading && posts.length === 0) {
+  // Extract and sort posts by ID descending (newest first)
+  const sortedPosts = Object.values(posts).sort((a, b) => b.id - a.id);
+
+  if (loading && sortedPosts.length === 0) {
     return (
       <div className="app-container">
         <div className="loading-text">Cargando posts...</div>
@@ -92,10 +95,10 @@ export default function PostFeed() {
         </section>
 
         <section className="post-list">
-          {posts.length === 0 ? (
+          {sortedPosts.length === 0 ? (
             <p className="empty-text">No hay posts aún.</p>
           ) : (
-            posts.map((post) => (
+            sortedPosts.map((post) => (
               <article key={post.id} className={`post-card ${editingPostId === post.id ? 'is-editing' : ''}`}>
                 {editingPostId === post.id ? (
                   <div className="edit-mode">
