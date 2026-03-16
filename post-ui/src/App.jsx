@@ -1,78 +1,63 @@
 import { useState, useEffect, useCallback } from 'react';
-import { API_URL } from './constants';
 import { getStoredToken, authenticate } from './services/auth';
-import { fetchPosts } from './services/post';
+import { usePosts } from './hooks/usePosts';
 import './index.css';
 
 export default function PostFeed() {
   const [authToken, setAuthToken] = useState(getStoredToken());
-  const [posts, setPosts] = useState([]);
-  const [totalPosts, setTotalPosts] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(0);
-  const [limit] = useState(4);
-
+  
+  // Custom hook for all post-related logic
   const handleAuthentication = useCallback(async () => {
     const token = await authenticate();
     if (token) setAuthToken(token);
   }, []);
 
-  const loadPosts = useCallback(async (currentPage, token) => {
-    if (!token) return;
-    try {
-      setLoading(true);
-      const data = await fetchPosts(currentPage, limit, token);
-      setPosts(Array.isArray(data.posts) ? data.posts : []);
-      setTotalPosts(data.count || 0);
-    } catch (error) {
-      console.error("Error fetching posts:", error);
-      if (error.status === 401) {
-        console.log(">> Token expired, re-authenticating...");
-        handleAuthentication();
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [limit, handleAuthentication]);
+  const {
+    posts,
+    totalPosts,
+    loading,
+    page,
+    setPage,
+    limit,
+    isSubmitting,
+    createPost,
+    updatePost
+  } = usePosts(authToken, handleAuthentication);
+
+  // Interaction states still managed locally as they are UI-only
+  const [newPostContent, setNewPostContent] = useState("");
+  const [editingPostId, setEditingPostId] = useState(null);
+  const [editContent, setEditContent] = useState("");
 
   useEffect(() => {
     if (!authToken) {
       handleAuthentication();
-    } else {
-      loadPosts(page, authToken);
     }
-  }, [page, authToken, loadPosts, handleAuthentication]);
+  }, [authToken, handleAuthentication]);
 
-  useEffect(() => {
-    if (!authToken) return;
+  const handleCreatePost = async (e) => {
+    e.preventDefault();
+    if (await createPost(newPostContent)) {
+      setNewPostContent("");
+    }
+  };
 
-    const ws = new WebSocket(`${API_URL}/ws?token=${authToken}`);
+  const handleStartEdit = (post) => {
+    setEditingPostId(post.id);
+    setEditContent(post.content);
+  };
 
-    ws.onopen = () => console.log(">> Connected to websocket");
+  const handleCancelEdit = () => {
+    setEditingPostId(null);
+    setEditContent("");
+  };
 
-    ws.onmessage = (event) => {
-      console.log(">> Message from server: ", event.data);
-      try {
-        const message = JSON.parse(event.data);
-        if (message.type === "Post_Created") {
-          const newPost = message.payload;
-          if (page === 0) {
-            setPosts((prevPosts) => [newPost, ...prevPosts].slice(0, limit));
-          }
-          setTotalPosts((prev) => prev + 1);
-        }
-      } catch (error) {
-        console.error("Error parsing websocket message:", error);
-      }
-    };
-
-    ws.onerror = (error) => console.error(">> WS Error: ", error);
-    ws.onclose = () => console.log(">> Disconnected from websocket");
-
-    return () => {
-      ws.close();
-    };
-  }, [page, limit, authToken]);
+  const handleUpdateSave = async (id) => {
+    if (await updatePost(id, editContent)) {
+      setEditingPostId(null);
+      setEditContent("");
+    }
+  };
 
   const totalPages = Math.ceil(totalPosts / limit);
 
@@ -87,28 +72,61 @@ export default function PostFeed() {
   return (
     <div className="app-container">
       <div className="feed-wrapper">
-        <h1 className="feed-title">Post Application Test</h1>
+        <header className="feed-header">
+          <h1 className="feed-title">Go Websockets Feed</h1>
+        </header>
 
-        <div className="pagination-info">
-          Total posts: {totalPosts} | Página {totalPages > 0 ? (page / limit) + 1 : 0} de {totalPages}
-        </div>
+        <section className="create-post-section">
+          <form onSubmit={handleCreatePost} className="create-post-form">
+            <textarea
+              placeholder="¿Qué estás pensando?"
+              value={newPostContent}
+              onChange={(e) => setNewPostContent(e.target.value)}
+              className="create-post-textarea"
+              required
+            />
+            <button type="submit" disabled={isSubmitting} className="submit-post-button">
+              {isSubmitting ? "Enviando..." : "Publicar"}
+            </button>
+          </form>
+        </section>
 
-        <div className="post-list">
+        <section className="post-list">
           {posts.length === 0 ? (
             <p className="empty-text">No hay posts aún.</p>
           ) : (
             posts.map((post) => (
-              <article key={post.id} className="post-card">
-                <p className="post-content">{post.content}</p>
-                <footer className="post-footer">
-                  Post ID: {post.id}
-                </footer>
+              <article key={post.id} className={`post-card ${editingPostId === post.id ? 'is-editing' : ''}`}>
+                {editingPostId === post.id ? (
+                  <div className="edit-mode">
+                    <textarea
+                      value={editContent}
+                      onChange={(e) => setEditContent(e.target.value)}
+                      className="edit-textarea"
+                      autoFocus
+                    />
+                    <div className="edit-actions">
+                      <button onClick={() => handleUpdateSave(post.id)} className="save-button">Guardar</button>
+                      <button onClick={handleCancelEdit} className="cancel-button">Cancelar</button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <p className="post-content">{post.content}</p>
+                    <footer className="post-footer">
+                      <span className="post-id">Post ID: {post.id}</span>
+                      <button onClick={() => handleStartEdit(post)} className="edit-button" title="Editar post">
+                        ✎
+                      </button>
+                    </footer>
+                  </>
+                )}
               </article>
             ))
           )}
-        </div>
+        </section>
 
-        <div className="pagination-controls">
+        <nav className="pagination-controls">
           <button
             onClick={() => setPage(Math.max(0, page - limit))}
             disabled={page === 0}
@@ -123,7 +141,7 @@ export default function PostFeed() {
           >
             Siguiente
           </button>
-        </div>
+        </nav>
       </div>
     </div>
   );

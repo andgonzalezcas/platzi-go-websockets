@@ -1,3 +1,7 @@
+* {
+    box-sizing: border-box;
+}
+
 body {
     margin: 0;
     padding: 0;
@@ -8,11 +12,14 @@ body {
 
 .app-container {
     padding: 2rem 1rem;
+    width: 100%;
+    overflow-x: hidden;
 }
 
 .feed-wrapper {
     max-width: 700px;
     margin: 0 auto;
+    width: 100%;
 }
 
 .feed-title {
@@ -74,6 +81,144 @@ body {
     padding: 0.5rem;
     border-radius: 8px;
     border: 1px solid #334155;
+}
+
+.feed-header {
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid #333;
+    padding-bottom: 1rem;
+}
+
+.post-card.is-editing {
+    border-color: #4facfe;
+    box-shadow: 0 0 15px rgba(79, 172, 254, 0.2);
+}
+
+.edit-mode {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.edit-textarea {
+    width: 100%;
+    min-height: 80px;
+    background: #1a1a1a;
+    border: 1px solid #444;
+    border-radius: 8px;
+    color: white;
+    padding: 0.75rem;
+    font-family: inherit;
+    resize: vertical;
+}
+
+.edit-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.save-button,
+.cancel-button {
+    padding: 0.4rem 1rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.save-button {
+    background: #4facfe;
+    color: white;
+    border: none;
+}
+
+.cancel-button {
+    background: transparent;
+    color: #888;
+    border: 1px solid #444;
+}
+
+.edit-button {
+    background: transparent;
+    border: none;
+    color: #666;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: color 0.2s;
+    padding: 0.2rem;
+}
+
+.edit-button:hover {
+    color: #4facfe;
+}
+
+.create-post-section {
+    margin-top: 0.5rem;
+    margin-bottom: 2.5rem;
+    padding: 1.5rem;
+    background: rgba(30, 41, 59, 0.4);
+    backdrop-filter: blur(10px);
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.create-post-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.create-post-textarea {
+    width: 100%;
+    min-height: 120px;
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    color: white;
+    padding: 1.25rem;
+    font-family: inherit;
+    font-size: 1rem;
+    resize: none;
+    transition: all 0.3s ease;
+}
+
+.create-post-textarea:focus {
+    outline: none;
+    border-color: rgba(79, 172, 254, 0.5);
+    background: rgba(15, 23, 42, 0.8);
+    box-shadow: 0 0 0 4px rgba(79, 172, 254, 0.1);
+}
+
+.submit-post-button {
+    align-self: flex-end;
+    background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+    color: #0b1120;
+    border: none;
+    padding: 0.8rem 2.5rem;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 0.625rem;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.submit-post-button:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(79, 172, 254, 0.4);
+    opacity: 0.95;
+}
+
+.submit-post-button:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.submit-post-button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background: #334155;
 }
 
 .pagination-controls {
