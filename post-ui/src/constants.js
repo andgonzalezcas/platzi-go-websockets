@@ -1,4 +1,4 @@
-export const API_URL = "http://localhost:5050";
+export const API_URL = "http://localhost:50505";
 
 export const TEST_USER = {
   email: "test@example.com",
