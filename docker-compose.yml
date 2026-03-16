@@ -1,6 +1,6 @@
 services:
   db:
-    build: ./database
+    build: ./backend/database
     container_name: postgres_ws_db
     restart: always
     ports:
