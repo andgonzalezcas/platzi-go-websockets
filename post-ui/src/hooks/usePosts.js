@@ -1,44 +1,55 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { API_URL } from '../constants';
+import { useState, useEffect, useCallback } from 'react';
+import { API_URL, INITIAL_LIMIT, SCROLL_LIMIT } from '../constants';
 import { fetchPosts, createPost as apiCreatePost, updatePost as apiUpdatePost } from '../services/post';
 
 export const usePosts = (authToken, handleAuthentication) => {
-  const [posts, setPosts] = useState({}); // { id: post }
+  const [posts, setPosts] = useState({});
   const [totalPosts, setTotalPosts] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(0);
-  const [limit] = useState(4);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const pageRef = useRef(page);
-  useEffect(() => {
-    pageRef.current = page;
-  }, [page]);
-
-  const loadPosts = useCallback(async (currentPage, token) => {
-    if (!token) return;
+  const loadPosts = useCallback(async (currentOffset, limit, isInitial = false) => {
+    if (!authToken) return;
     try {
-      setLoading(true);
-      const data = await fetchPosts(currentPage, limit, token);
+      if (isInitial) setLoading(true);
+      else setLoadingMore(true);
 
+      const data = await fetchPosts(currentOffset, limit, authToken);
       const newPostsArr = Array.isArray(data.posts) ? data.posts : [];
-      const newPostsObj = {};
 
-      newPostsArr.forEach(post => {
-        newPostsObj[post.id] = post;
+      setPosts(prev => {
+        const newPostsObj = isInitial ? {} : { ...prev };
+        newPostsArr.forEach(post => {
+          newPostsObj[post.id] = post;
+        });
+        return newPostsObj;
       });
 
-      setPosts(newPostsObj);
-      setTotalPosts(data.count || 0);
+      const totalCount = data.count || 0;
+      setTotalPosts(totalCount);
+
+      if (newPostsArr.length < limit || (currentOffset + newPostsArr.length) >= totalCount) {
+        setHasMore(false);
+      } else {
+        setHasMore(true);
+      }
     } catch (error) {
       console.error("Error fetching posts:", error);
-      if (error.status === 401) {
-        handleAuthentication();
-      }
+      if (error.status === 401) handleAuthentication();
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
-  }, [limit, handleAuthentication]);
+  }, [authToken, handleAuthentication]);
+
+  const loadMore = useCallback(() => {
+    if (loadingMore || !hasMore) return;
+
+    const currentCount = Object.keys(posts).length;
+    loadPosts(currentCount, SCROLL_LIMIT);
+  }, [loadingMore, hasMore, posts, loadPosts]);
 
   const createPost = async (content) => {
     if (!content.trim() || isSubmitting) return;
@@ -69,16 +80,14 @@ export const usePosts = (authToken, handleAuthentication) => {
 
   useEffect(() => {
     if (authToken) {
-      loadPosts(page, authToken);
+      loadPosts(0, INITIAL_LIMIT, true);
     }
-  }, [page, authToken, loadPosts]);
+  }, [authToken, loadPosts]);
 
   useEffect(() => {
     if (!authToken) return;
 
     const ws = new WebSocket(`${API_URL}/ws?token=${authToken}`);
-
-    ws.onopen = () => console.log(">> Connected to websocket");
 
     ws.onmessage = (event) => {
       try {
@@ -86,10 +95,8 @@ export const usePosts = (authToken, handleAuthentication) => {
         const payload = message.payload;
 
         if (message.type === "Post_Created") {
-          if (pageRef.current === 0) {
-            setPosts(prev => ({ [payload.id]: payload, ...prev }));
-          }
-          setTotalPosts((prev) => prev + 1);
+          setPosts(prev => ({ [payload.id]: { ...payload }, ...prev }));
+          setTotalPosts(prev => prev + 1);
         } else if (message.type === "Post_Updated") {
           setPosts(prev => {
             if (prev[payload.id]) {
@@ -103,21 +110,18 @@ export const usePosts = (authToken, handleAuthentication) => {
       }
     };
 
-    ws.onerror = (error) => console.error(">> WS Error: ", error);
-    ws.onclose = () => console.log(">> Disconnected from websocket");
-
     return () => ws.close();
-  }, [authToken, limit]);
+  }, [authToken]);
 
   return {
     posts,
     totalPosts,
     loading,
-    page,
-    setPage,
-    limit,
-    isSubmitting,
+    loadingMore,
+    hasMore,
+    loadMore,
     createPost,
-    updatePost
+    updatePost,
+    isSubmitting
   };
 };

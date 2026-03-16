@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { getStoredToken, authenticate } from './services/auth';
 import { usePosts } from './hooks/usePosts';
 import './index.css';
 
 export default function PostFeed() {
   const [authToken, setAuthToken] = useState(getStoredToken());
-  
+
   // Custom hook for all post-related logic
   const handleAuthentication = useCallback(async () => {
     const token = await authenticate();
@@ -14,15 +14,28 @@ export default function PostFeed() {
 
   const {
     posts,
-    totalPosts,
     loading,
-    page,
-    setPage,
-    limit,
-    isSubmitting,
+    loadingMore,
+    hasMore,
+    loadMore,
     createPost,
-    updatePost
+    updatePost,
+    isSubmitting
   } = usePosts(authToken, handleAuthentication);
+
+  const observer = useRef();
+  const lastPostElementRef = useCallback(node => {
+    if (loading || loadingMore) return;
+    if (observer.current) observer.current.disconnect();
+
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore) {
+        loadMore();
+      }
+    });
+
+    if (node) observer.current.observe(node);
+  }, [loading, loadingMore, hasMore, loadMore]);
 
   // Interaction states still managed locally as they are UI-only
   const [newPostContent, setNewPostContent] = useState("");
@@ -59,9 +72,6 @@ export default function PostFeed() {
     }
   };
 
-  const totalPages = Math.ceil(totalPosts / limit);
-
-  // Extract and sort posts by ID descending (newest first)
   const sortedPosts = Object.values(posts).sort((a, b) => b.id - a.id);
 
   if (loading && sortedPosts.length === 0) {
@@ -98,8 +108,12 @@ export default function PostFeed() {
           {sortedPosts.length === 0 ? (
             <p className="empty-text">No hay posts aún.</p>
           ) : (
-            sortedPosts.map((post) => (
-              <article key={post.id} className={`post-card ${editingPostId === post.id ? 'is-editing' : ''}`}>
+            sortedPosts.map((post, index) => (
+              <article
+                key={post.id}
+                className={`post-card ${editingPostId === post.id ? 'is-editing' : ''}`}
+                ref={index === sortedPosts.length - 1 ? lastPostElementRef : null}
+              >
                 {editingPostId === post.id ? (
                   <div className="edit-mode">
                     <textarea
@@ -129,22 +143,10 @@ export default function PostFeed() {
           )}
         </section>
 
-        <nav className="pagination-controls">
-          <button
-            onClick={() => setPage(Math.max(0, page - limit))}
-            disabled={page === 0}
-            className="pagination-button"
-          >
-            Anterior
-          </button>
-          <button
-            onClick={() => setPage(page + limit)}
-            disabled={(page + limit) >= totalPosts}
-            className="pagination-button"
-          >
-            Siguiente
-          </button>
-        </nav>
+        <div className="scroll-status">
+          {loadingMore && <div className="loading-more">Cargando más posts...</div>}
+          {!hasMore && sortedPosts.length > 0 && <div className="end-of-list">No hay más posts para mostrar.</div>}
+        </div>
       </div>
     </div>
   );

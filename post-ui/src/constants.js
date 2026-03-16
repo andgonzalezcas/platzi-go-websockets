@@ -8,3 +8,6 @@ export const TEST_USER = {
 export const STORAGE_KEYS = {
   TOKEN: 'token'
 };
+
+export const INITIAL_LIMIT = 5;
+export const SCROLL_LIMIT = 3;
