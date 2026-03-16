@@ -123,6 +123,12 @@ func UpdatePostHandler(s server.Server) http.HandlerFunc {
 			UserId:  claimedUser.Id,
 		}
 
+		var postMessage = models.WebsocketMessage{
+			Type:    "Post_Updated",
+			Payload: post,
+		}
+		s.Hub().Broadcast(postMessage, nil)
+
 		err = repository.UpdatePost(r.Context(), &post)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
