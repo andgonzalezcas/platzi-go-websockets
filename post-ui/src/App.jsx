@@ -1,42 +1,52 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { API_URL } from './constants';
+import { getStoredToken, authenticate } from './services/auth';
+import { fetchPosts } from './services/post';
 import './index.css';
 
-const TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIzQU42aUxOdHpxRlRyYmRMdnZjcmxXNnM0TjkiLCJleHAiOjE3NzM3MDkzODV9.lAQ17faTepubxK6TvDzbkCl-rhsOIdFcXamyhGvWufM";
-const API_URL = "http://localhost:5050";
-
 export default function PostFeed() {
+  const [authToken, setAuthToken] = useState(getStoredToken());
   const [posts, setPosts] = useState([]);
   const [totalPosts, setTotalPosts] = useState(0);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
   const [limit] = useState(4);
 
-  const fetchInitialPosts = async (currentPage) => {
+  const handleAuthentication = useCallback(async () => {
+    const token = await authenticate();
+    if (token) setAuthToken(token);
+  }, []);
+
+  const loadPosts = useCallback(async (currentPage, token) => {
+    if (!token) return;
     try {
       setLoading(true);
-      const params = new URLSearchParams({ page: currentPage, limit: limit });
-      const response = await fetch(`${API_URL}/posts?${params}`, {
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": TOKEN
-        }
-      });
-      const data = await response.json();
+      const data = await fetchPosts(currentPage, limit, token);
       setPosts(Array.isArray(data.posts) ? data.posts : []);
       setTotalPosts(data.count || 0);
     } catch (error) {
       console.error("Error fetching posts:", error);
+      if (error.status === 401) {
+        console.log(">> Token expired, re-authenticating...");
+        handleAuthentication();
+      }
     } finally {
       setLoading(false);
     }
-  };
+  }, [limit, handleAuthentication]);
 
   useEffect(() => {
-    fetchInitialPosts(page);
-  }, [page, limit]);
+    if (!authToken) {
+      handleAuthentication();
+    } else {
+      loadPosts(page, authToken);
+    }
+  }, [page, authToken, loadPosts, handleAuthentication]);
 
   useEffect(() => {
-    const ws = new WebSocket(`${API_URL}/ws`);
+    if (!authToken) return;
+
+    const ws = new WebSocket(`${API_URL}/ws?token=${authToken}`);
 
     ws.onopen = () => console.log(">> Connected to websocket");
 
@@ -62,7 +72,7 @@ export default function PostFeed() {
     return () => {
       ws.close();
     };
-  }, [page, limit]);
+  }, [page, limit, authToken]);
 
   const totalPages = Math.ceil(totalPosts / limit);
 
