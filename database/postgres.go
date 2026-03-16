@@ -92,14 +92,12 @@ func (repo *PostgresRepository) DeletePost(ctx context.Context, id string, userI
 	return err
 }
 
-func (repo *PostgresRepository) ListPosts(ctx context.Context, page uint64) ([]models.Post, error) {
-	const QUERY_LIMIT = 20
-
+func (repo *PostgresRepository) ListPosts(ctx context.Context, limit uint64, offset uint64) ([]models.Post, error) {
 	rows, err := repo.db.QueryContext(
 		ctx,
 		"SELECT id, content, created_at, user_id FROM posts ORDER BY created_at DESC LIMIT $1 OFFSET $2",
-		QUERY_LIMIT,
-		(page-1)*QUERY_LIMIT,
+		limit,
+		offset,
 	)
 	if err != nil {
 		return nil, err

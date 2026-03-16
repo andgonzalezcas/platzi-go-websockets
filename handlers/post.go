@@ -166,13 +166,20 @@ func DeletePostHandler(s server.Server) http.HandlerFunc {
 
 func ListPostsHandler(s server.Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		page, err := strconv.ParseUint(r.URL.Query().Get("page"), 10, 64)
+		pageStr := r.URL.Query().Get("page")
+		limitStr := r.URL.Query().Get("limit")
+
+		page, err := strconv.ParseUint(pageStr, 10, 64)
 		if err != nil {
-			http.Error(w, "page is required", http.StatusBadRequest)
-			return
+			page = 0
 		}
 
-		posts, err := repository.ListPosts(r.Context(), page)
+		limit, err := strconv.ParseUint(limitStr, 10, 64)
+		if err != nil {
+			limit = 20
+		}
+
+		posts, err := repository.ListPosts(r.Context(), limit, page)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
